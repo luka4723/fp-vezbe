@@ -1,4 +1,4 @@
-module Rose where
+module Rose.Rose where
 
 data Rose a = Node a [Rose a]
 

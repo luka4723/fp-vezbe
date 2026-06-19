@@ -1,5 +1,5 @@
 import Text.Printf
-import Rose
+import Rose.Rose
 
 
 data Small = Small Int Int Int Int Int Int
@@ -15,7 +15,7 @@ adjust a
        | otherwise = " " ++ show a 
 
 instance Show Mancala where
-    show (Mancala turn pBig cBig pSmall cSmall) = printf $ show cSmall ++ adjust cBig ++ "                   " ++ show pBig ++ "\n"
+    show (Mancala turn pBig cBig pSmall cSmall) = printf $ "\n" ++ show cSmall ++ adjust cBig ++ "                   " ++ show pBig ++ "\n"
                                                          ++ show pSmall
 
 valid :: Mancala -> [Int]
@@ -92,4 +92,70 @@ main = do
         let rose = genMoves (Node mancala []) 3
         putStrLn $ show $ elemsOnDepth rose 1
 
-        
+newtype GameStateOp a = GameStateOp { runGameStateOp :: Mancala -> (a, Mancala) }
+
+instance Functor GameStateOp where
+    fmap f (GameStateOp f') = GameStateOp (\tabla -> let (a, tabla') = f' tabla in (f a, tabla'))
+
+-- f (a->b) -> f a -> f b // f ((mancala->(a,mancala)->(mancala->(a,mancala)) -> f (mancala->(a,mancala) -> f (mancala->(a,mancala))
+instance Applicative GameStateOp where
+    pure x = (GameStateOp (\tabla -> (x,tabla)))
+    (GameStateOp f) <*> (GameStateOp g) = (GameStateOp (\tabla -> let (f', tabla') = f tabla;
+                                                                                     (a, tabla'') = g tabla'
+                                                                                  in (f' a, tabla'')))
+
+instance Monad GameStateOp where
+    --(>>=) :: m a -> (a -> m b) -> m b
+    (GameStateOp f) >>= g = (GameStateOp (\tabla -> let (a, tabla') = f tabla;
+                                                                       GameStateOp h = g a
+                                                                    in (h tabla')))
+
+newtype GameStateOpHistory a = GameStateOpHistory { runGameStateOpHistory :: Mancala -> (a, [Mancala]) }
+
+instance Functor GameStateOpHistory where
+    fmap f (GameStateOpHistory f') = GameStateOpHistory (\tabla -> let (a, tabla') = f' tabla in (f a, tabla'))
+
+instance Applicative GameStateOpHistory where
+    pure x = (GameStateOpHistory (\tabla -> (x,[tabla])))
+    (GameStateOpHistory f) <*> (GameStateOpHistory g) = (GameStateOpHistory (\tabla -> let (f', tabla') = f tabla;
+                                                                                                                 (a, tabla'') = g tabla
+                                                                                                              in (f' a, tabla' ++ tabla'')))
+
+instance Monad GameStateOpHistory where
+    (GameStateOpHistory f) >>= g = (GameStateOpHistory (\tabla -> let (a, tabla') = f tabla;
+                                                                                            GameStateOpHistory h = g a;
+                                                                                            (b,tabla'') = h tabla
+                                                                                         in (b, tabla' ++ tabla'')))
+
+runGameState :: (Bool,Mancala)
+runGameState = runGameStateOp applyMoves mancalaInitialState
+                                              where 
+                                                mancalaInitialState = Mancala Player 0 0 (Small 4 4 4 4 4 4) (Small 4 4 4 4 4 4)
+                                                applyMoves = do
+                                                             applyMove 1
+                                                             applyMove 7
+
+applyMove :: Int -> GameStateOp Bool
+applyMove move = GameStateOp (\tabla -> let tabla' = doMove tabla move
+                                                        in (isGameOver tabla', tabla'))
+
+
+runGameStateH :: (Bool,[Mancala])
+runGameStateH = runGameStateOpHistory applyMovesH mancalaInitialStateH
+                                              where 
+                                                mancalaInitialStateH = Mancala Player 0 0 (Small 4 4 4 4 4 4) (Small 4 4 4 4 4 4)
+                                                applyMovesH = do
+                                                             applyMoveH 3
+                                                             applyMoveH 2
+                                                             applyMoveH 2
+                                                             applyMoveH 2
+
+applyMoveH :: Int -> GameStateOpHistory Bool
+applyMoveH move = GameStateOpHistory (\tabla -> let tabla' = doMove tabla move
+                                                            in (isGameOver tabla', [tabla',tabla]))
+
+main2 = do
+        let (res,xs) = runGameStateH 
+        putStrLn $ show $ head xs
+        putStrLn $ show $ valid $ head xs
+
