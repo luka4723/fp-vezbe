@@ -35,42 +35,41 @@ valid (Mancala turn pBig cBig pSmall cSmall)
                                                                                               8 -> e
                                                                                               7 -> f, x > 0]
 
+shift :: Int -> [a] -> [a]
+shift _ [] = []
+shift n xs = drop (n `mod` length xs) xs ++ take (n `mod` length xs) xs
+
 doMove :: Mancala -> Int -> Mancala
-doMove (Mancala turn pBig cBig pSmall cSmall) n
-        | turn == Player = if n `elem` (valid (Mancala Player pBig cBig pSmall cSmall)) then handle (Mancala turn pBig cBig pSmall cSmall) n else error "Los input"
-        | turn == Computer = if n `elem` valid (Mancala Computer pBig cBig pSmall cSmall) then handle (Mancala turn pBig cBig pSmall cSmall) n else error "Los input"
+doMove (Mancala turn pBig cBig pSmall cSmall) n = if n `elem` (valid (Mancala turn pBig cBig pSmall cSmall))
+                                                  then handle (Mancala turn pBig cBig pSmall cSmall) n else error "Los input"
         where
             fromSmall (Small a b c d e f) = [a,b,c,d,e,f]
             toSmall [a,b,c,d,e,f] = (Small a b c d e f)
-            handle (Mancala Player pBig cBig pSmall cSmall) n = do let  xs = fromSmall pSmall
-                                                                   let  whole = xs ++ [pBig] ++ (reverse . fromSmall $ cSmall)
-                                                                   let  val = xs !! (n-1) `mod` 13
-                                                                   let  val' = xs !! (n-1) `div` 13
-                                                                   let  newPSmall = [x+i| (x,j)<-zip ((take (n-1) whole ++ [0])) [1..], let i = if j<=val-13+n then 1 else 0]
-                                                                                    ++ [x+i| (x,j)<-zip (drop n whole) [1..], let i = if j<=val then 1 else 0]
-                                                                   let newPSmall' = map (+val') newPSmall
-                                                                   let newTurn = if val + n == 7 then Player else Computer
-                                                                   let newPSmall'' = if val' == 0 && val+n<7 && newPSmall' !! (val + n - 1) == 1 then [ i | (x,j)<- zip newPSmall' [1..], let i = if j==7 then 1+x+ (newPSmall' !! (13-n)) else x] 
-                                                                                                                   else newPSmall'
-                                                                   let newPSmall''' = if val' == 0 && val+n<7 && newPSmall'' !! (val + n - 1) == 1 then [ i | (x,j)<- zip newPSmall'' [1..], let i = if j==val+n || j==12-val+n then 0 else x] 
-                                                                                                                   else newPSmall''
-                                                                   (Mancala newTurn (head . take 1 . drop 6 $ newPSmall''') cBig
-                                                                    (toSmall $ take 6 newPSmall''') (toSmall $ take 6 (reverse newPSmall''')))
-                                                                   
-            handle (Mancala Computer pBig cBig pSmall cSmall) n = do let  xs = reverse . fromSmall $ cSmall
-                                                                     let  whole = xs ++ [cBig] ++ fromSmall pSmall
-                                                                     let  val = (xs !! (n-7)) `mod` 13
-                                                                     let  val' = (xs !! (n-7)) `div` 13
-                                                                     let  newCSmall = [x+i| (x,j)<-zip ((take (n-7) whole ++ [0])) [1..], let i = if j<=val-19+n then 1 else 0]
-                                                                                    ++ [x+i| (x,j)<-zip (drop (n-6) whole) [1..], let i = if j<=val then 1 else 0 ]
-                                                                     let newCSmall' = map (+val') newCSmall 
-                                                                     let newTurn = if val + (n-7) == 7 then Computer else Player
-                                                                     let newCSmall'' = if val' == 0 && val+(n-6)<7 && newCSmall' !! (val + (n-6) - 1) == 1 then [ i | (x,j)<- zip newCSmall' [1..], let i = if j==7 then 1+x+ (newCSmall' !! (13-(n-6))) else x] 
-                                                                                                                   else newCSmall'
-                                                                     let newCSmall''' = if val' == 0 && val+(n-6)<7 && newCSmall'' !! (val + (n-6) - 1) == 1 then [ i | (x,j)<- zip newCSmall'' [1..], let i = if j==val+(n-6) || j==12-val+(n-6) then 0 else x] 
-                                                                                                                   else newCSmall''
-                                                                     (Mancala newTurn pBig  (head . take 1 . drop 6 $ newCSmall''')
-                                                                      (toSmall . reverse . take 6 $ reverse newCSmall''') (toSmall . reverse . take 6 $ newCSmall'''))
+            pebbles xs val = map (+1) (take val xs) ++ drop val xs
+            steal idx xs = if xs !! idx == 1 && idx < 6 && xs !! (12-idx) /=0 
+                           then take idx xs ++ [0] ++ (take (5-idx) $ drop (idx+1) xs) ++ 
+                                [xs !! 6 + xs !! (12-idx) + xs !! idx] ++ 
+                                (take (5-idx) $ drop 7 xs) ++ [0] ++ (drop (13-idx) xs)
+                           else xs
+            flip Player = Computer
+            flip Computer = Player
+            ps = fromSmall pSmall
+            cs = reverse . fromSmall $ cSmall
+            big = if turn == Player then pBig else cBig        
+            handle (Mancala turn pBig cBig pSmall cSmall) n   = do let xs = if turn == Player then ps else cs
+                                                                   let idx = if turn == Player then n else n-6
+                                                                   let val = xs !! (idx-1) `mod` 13
+                                                                   let val' = xs !! (idx-1) `div` 13
+                                                                   let whole = (take (idx-1) xs) ++ [0] ++ (drop idx xs) ++ [big] ++ (if turn == Player then cs else ps)
+                                                                   let newState = steal ((idx + val - 1) `mod` 13) $ map (+val') $ shift (13-idx) $ pebbles (shift idx whole) val
+                                                                   let newTurn = if val + idx == 7 then turn else flip turn
+                                                                 
+                                                                   if turn == Player 
+                                                                    then (Mancala newTurn (head . drop 6 $ newState) cBig
+                                                                    (toSmall $ take 6 newState) (toSmall $ take 6 (reverse newState)))
+
+                                                                    else (Mancala newTurn pBig  (head . drop 6 $ newState)
+                                                                      (toSmall . reverse . take 6 $ reverse newState) (toSmall . reverse . take 6 $ newState))                                                                
 
 isGameOver :: Mancala -> Bool
 isGameOver (Mancala turn pBig cBig pSmall cSmall) = if ((==0) . sum . fromSmall $ pSmall) || ((==0) . sum . fromSmall $ cSmall)
@@ -87,10 +86,10 @@ genMoves (Node (Mancala turn pBig cBig pSmall cSmall) xs) 0 = (Node (Mancala tur
 genMoves (Node (Mancala turn pBig cBig pSmall cSmall) xs) n = genMoves (Node (Mancala turn pBig cBig pSmall cSmall) 
                                                               [(Node (doMove (Mancala turn pBig cBig pSmall cSmall) i) []) | i<-valid (Mancala turn pBig cBig pSmall cSmall)]) (n-1)
 main = do
-        let mancala = Mancala Computer 0 0 (Small 4 4 4 4 4 4) (Small 4 4 4 4 4 4)
-        --putStrLn $ show mancala
-        let rose = genMoves (Node mancala []) 3
-        putStrLn $ show $ elemsOnDepth rose 1
+        let mancala = Mancala Player 2 2 (Small 4 4 4 4 4 0) (Small 4 4 4 4 4 0)
+        putStrLn $ show $ doMove mancala 2
+        --let rose = genMoves (Node mancala []) 3
+        --putStrLn $ show $ elemsOnDepth rose 1
 
 newtype GameStateOp a = GameStateOp { runGameStateOp :: Mancala -> (a, Mancala) }
 
@@ -145,11 +144,38 @@ runGameStateH = runGameStateOpHistory applyMovesH mancalaInitialStateH
                                               where 
                                                 mancalaInitialStateH = Mancala Player 0 0 (Small 4 4 4 4 4 4) (Small 4 4 4 4 4 4)
                                                 applyMovesH = do
-                                                             initialize
-                                                             applyMoveH 1
-                                                             applyMoveH 7
-                                                             applyMoveH 2
-                                                             applyMoveH 3
+                                                                initialize
+                                                                applyMoveH 3
+                                                                applyMoveH 6
+                                                                applyMoveH 8
+                                                                applyMoveH 11
+                                                                applyMoveH 2
+                                                                applyMoveH 6
+                                                                applyMoveH 4
+                                                                applyMoveH 7
+                                                                applyMoveH 9
+                                                                applyMoveH 1
+                                                                applyMoveH 3
+                                                                applyMoveH 4
+                                                                applyMoveH 6
+                                                                applyMoveH 11
+                                                                applyMoveH 12
+                                                                applyMoveH 6
+                                                                applyMoveH 1
+                                                                applyMoveH 9
+                                                                applyMoveH 2
+                                                                applyMoveH 8
+                                                                applyMoveH 4
+                                                                applyMoveH 12
+                                                                applyMoveH 9
+                                                                applyMoveH 6
+                                                                applyMoveH 3
+                                                                applyMoveH 10
+                                                                applyMoveH 6
+                                                                applyMoveH 4
+                                                                applyMoveH 11
+                                                                applyMoveH 12
+                                                                
 
 
 initialize :: GameStateOpHistory Bool
@@ -159,8 +185,12 @@ applyMoveH :: Int -> GameStateOpHistory Bool
 applyMoveH move = GameStateOpHistory (\tabla -> let tabla' = doMove tabla move
                                                             in (isGameOver tabla', [tabla']))
 
+helper :: Mancala -> Int
+helper (Mancala turn pBig cBig (Small q w e r t y) (Small a s d f g h)) = pBig + cBig + q + w + e +r +t+y+a+s+d+f+g+h
+
 main2 = do
         let (res,xs) = runGameStateH 
-        putStrLn $ show $ xs
-        --putStrLn $ show $ valid $ head xs
-
+        putStrLn $ show $  xs
+        --putStrLn $ show $ map helper xs
+        putStrLn $ show $ res
+        putStrLn $ show $ valid $ head xs

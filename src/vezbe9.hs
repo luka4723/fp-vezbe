@@ -145,3 +145,40 @@ smeh str = do a <- funny str
               b <- notFunny a
               (x:y:xs) <- notFunny b
               return (y:x:xs)
+
+
+
+              
+-- doMove (Mancala turn pBig cBig pSmall cSmall) n
+--         | turn == Player = if n `elem` (valid (Mancala Player pBig cBig pSmall cSmall)) then handle (Mancala turn pBig cBig pSmall cSmall) n else error "Los input"
+--         | turn == Computer = if n `elem` valid (Mancala Computer pBig cBig pSmall cSmall) then handle (Mancala turn pBig cBig pSmall cSmall) n else error "Los input"
+--         where
+--             fromSmall (Small a b c d e f) = [a,b,c,d,e,f]
+--             toSmall [a,b,c,d,e,f] = (Small a b c d e f)
+--             pebbles xs val = map (+1) (take val xs) ++ drop val xs
+--             steal idx xs = if xs !! idx == 1 && idx < 6 && xs !! (12-idx) /=0 
+--                            then take idx xs ++ [0] ++ (take (5-idx) $ drop (idx+1) xs) ++ 
+--                                 [xs !! 6 + xs !! (12-idx) + xs !! idx] ++ 
+--                                 (take (5-idx) $ drop 7 xs) ++ [0] ++ (drop (13-idx) xs)
+--                            else xs
+                           
+--             handle (Mancala Player pBig cBig pSmall cSmall) n = do let xs = fromSmall pSmall
+--                                                                    let val = xs !! (n-1) `mod` 13
+--                                                                    let val' = xs !! (n-1) `div` 13
+--                                                                    let whole = (take (n-1) xs) ++ [0] ++ (drop n xs) ++ [pBig] ++ (reverse . fromSmall $ cSmall)
+--                                                                    let newState = steal ((n + val - 1) `mod` 13) $ map (+val') $ shift (13-n) $ pebbles (shift n whole) val
+--                                                                    let newTurn = if val + n == 7 then Player else Computer
+                                                                 
+--                                                                    (Mancala newTurn (head . drop 6 $ newState) cBig
+--                                                                     (toSmall $ take 6 newState) (toSmall $ take 6 (reverse newState)))
+                                                                   
+--             handle (Mancala Computer pBig cBig pSmall cSmall) m = do let xs = reverse . fromSmall $ cSmall
+--                                                                      let n = m-6
+--                                                                      let val = xs !! (n-1) `mod` 13
+--                                                                      let val' = xs !! (n-1) `div` 13
+--                                                                      let whole = (take (n-1) xs) ++ [0] ++ (drop n xs) ++ [cBig] ++ fromSmall pSmall    
+--                                                                      let newState = steal ((n + val - 1) `mod` 13) $ map (+val') $ shift (13-n) $ pebbles (shift n whole) val
+--                                                                      let newTurn = if val + n == 7 then Computer else Player
+                                                                     
+--                                                                      (Mancala newTurn pBig  (head . drop 6 $ newState)
+--                                                                       (toSmall . reverse . take 6 $ reverse newState) (toSmall . reverse . take 6 $ newState))
