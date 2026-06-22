@@ -124,8 +124,8 @@ instance Applicative GameStateOpHistory where
 instance Monad GameStateOpHistory where
     (GameStateOpHistory f) >>= g = (GameStateOpHistory (\tabla -> let (a, tabla') = f tabla;
                                                                                             GameStateOpHistory h = g a;
-                                                                                            (b,tabla'') = h tabla
-                                                                                         in (b, tabla' ++ tabla'')))
+                                                                                            (b,tabla'') = h (head tabla')
+                                                                                         in (b, tabla''++tabla')))
 
 runGameState :: (Bool,Mancala)
 runGameState = runGameStateOp applyMoves mancalaInitialState
@@ -145,17 +145,22 @@ runGameStateH = runGameStateOpHistory applyMovesH mancalaInitialStateH
                                               where 
                                                 mancalaInitialStateH = Mancala Player 0 0 (Small 4 4 4 4 4 4) (Small 4 4 4 4 4 4)
                                                 applyMovesH = do
+                                                             initialize
+                                                             applyMoveH 1
+                                                             applyMoveH 7
+                                                             applyMoveH 2
                                                              applyMoveH 3
-                                                             applyMoveH 2
-                                                             applyMoveH 2
-                                                             applyMoveH 2
+
+
+initialize :: GameStateOpHistory Bool
+initialize = GameStateOpHistory $ \s -> (False,[s])
 
 applyMoveH :: Int -> GameStateOpHistory Bool
 applyMoveH move = GameStateOpHistory (\tabla -> let tabla' = doMove tabla move
-                                                            in (isGameOver tabla', [tabla',tabla]))
+                                                            in (isGameOver tabla', [tabla']))
 
 main2 = do
         let (res,xs) = runGameStateH 
-        putStrLn $ show $ head xs
-        putStrLn $ show $ valid $ head xs
+        putStrLn $ show $ xs
+        --putStrLn $ show $ valid $ head xs
 
